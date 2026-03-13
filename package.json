@@ -1,0 +1,23 @@
+{
+  "name": "fakebook",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "run-p watch serve",
+    "watch": "node scripts/watch.mjs",
+    "serve": "http-server dist -c-1 -p 4173",
+    "build": "node scripts/build.mjs",
+    "build:analyze": "node scripts/build.mjs --analyze",
+    "build:sourcemap": "node scripts/build.mjs --sourcemap",
+    "lint": "biome check --write .",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2",
+    "esbuild": "latest",
+    "http-server": "14",
+    "npm-run-all": "4",
+    "vitest": "4"
+  }
+}
