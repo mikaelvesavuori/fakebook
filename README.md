@@ -27,6 +27,12 @@ App data is stored in IndexedDB in the browser. AI users can run through a local
 npm install
 ```
 
+### Create local config
+
+```bash
+cp config.example.json config.json
+```
+
 ### Start app
 
 ```bash
@@ -51,7 +57,7 @@ ollama pull smollm2:3b
 ollama pull llama3.2:3b
 ```
 
-Set `ollamaModel` to that tag in `config.json`.
+Set `ollamaModel` to that tag in your local `config.json`.
 
 Then ensure Ollama is running:
 
@@ -75,23 +81,28 @@ If the app runs on phone and Ollama runs on another machine, set `ollamaBaseUrl`
 
 ## Configuration
 
-Edit [config.json](/Users/mikaelvesavuori/Web/fakebook/config.json).
+Create a local `config.json` from [config.example.json](/Users/mikaelvesavuori/Web/fakebook/config.example.json), then edit `config.json`.
 
-Relevant AI config keys:
+All current user-editable keys:
 
-- `aiLanguage`
-- `ollamaBaseUrl`
-- `ollamaModel`
-- `ollamaTemperature`
-- `ollamaTopP`
-- `ollamaNumPredict`
-- `ollamaRepeatPenalty`
-- `ollamaKeepAlive`
-- `aiPostMaxChars`
-- `aiCommentMaxChars`
-- `aiUserPrompt`
-- `aiPostPromptTemplate`
-- `aiCommentPromptTemplate`
+- `platformName` (string): app name shown in header and browser title.
+- `platformIcon` (string): icon/emoji shown next to app name.
+- `profileImageMaxBytesKb` (number, default `280`, allowed `64-2048`): max compressed profile image size in KB.
+- `postImageMaxBytesKb` (number, default `1024`, allowed `128-4096`): max compressed size per post image in KB.
+- `postImagesTotalMaxBytesKb` (number, default `10240`, allowed `512-51200`): max total compressed image size for all images in a single post in KB.
+- `aiLanguage` (string): target language instruction used in prompts (for example `sv` or `en`).
+- `ollamaBaseUrl` (string): Ollama server URL (for example `http://127.0.0.1:11434`).
+- `ollamaModel` (string): Ollama model tag to use (for example `llama3.2:3b`).
+- `ollamaTemperature` (number, default `0.75`, allowed `0-2`): generation creativity.
+- `ollamaTopP` (number, default `0.95`, allowed `0-1`): nucleus sampling.
+- `ollamaNumPredict` (number, default `220`, allowed `16-512`): max generated tokens.
+- `ollamaRepeatPenalty` (number, default `1.05`, allowed `1-1.5`): repetition control.
+- `ollamaKeepAlive` (string, default `10m`): Ollama model keep-alive setting.
+- `aiPostMaxChars` (number, default `260`, allowed `60-1200`): max post length requested from AI.
+- `aiCommentMaxChars` (number, default `180`, allowed `40-600`): max comment length requested from AI.
+- `aiUserPrompt` (string or string[]): base system/persona prompt.
+- `aiPostPromptTemplate` (string or string[]): template used when AI users generate posts.
+- `aiCommentPromptTemplate` (string or string[]): template used when AI users generate comments.
 
 Prompt placeholders:
 
@@ -102,6 +113,8 @@ Prompt placeholders:
 - `{{postText}}`
 - `{{maxChars}}`
 - `{{recentSection}}`
+
+If you pass prompts as arrays, lines are joined with newlines internally.
 
 ## Scripts
 

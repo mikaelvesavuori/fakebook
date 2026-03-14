@@ -13,15 +13,21 @@ export const LIMITS = {
   profileImageMaxBytes: 280 * 1024,
   postImageMaxDimension: 1200,
   postImageQuality: 0.66,
-  postImageMaxBytes: 520 * 1024,
-  postImagesTotalMaxBytes: 3 * 1024 * 1024,
+  postImageMaxBytes: 1024 * 1024,
+  postImagesTotalMaxBytes: 10 * 1024 * 1024,
   maxImageDimension: 1200,
   imageQuality: 0.65,
   feedBatchSize: 20,
   scrollThresholdPx: 400,
 }
 
-export const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"]
+export const ALLOWED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+]
 
 export const DEFAULT_AI_UI_TEXT = {
   statusLoadingActive: "Active (checking Ollama...)",
@@ -62,6 +68,9 @@ export const DEFAULT_AI_ACTIVITY_LABELS = {
 export const DEFAULT_CONFIG = {
   platformName: "Fakebook",
   platformIcon: "💬",
+  profileImageMaxBytesKb: 280,
+  postImageMaxBytesKb: 1024,
+  postImagesTotalMaxBytesKb: 10240,
   aiLanguage: "en",
   ollamaBaseUrl: "http://127.0.0.1:11434",
   ollamaModel: "",

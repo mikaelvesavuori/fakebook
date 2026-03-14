@@ -18,8 +18,10 @@ import {
   updateProfile,
 } from "./db.js"
 import { processImageFile, processImageFiles } from "./images.js"
+import { applyRuntimeLimitsFromConfig } from "./runtime-limits.js"
 import { escapeHtml, formatDate } from "./utils.js"
 import { validateCommentInput, validatePostInput, validateProfile } from "./validators.js"
+import { buildReactorNamesLabel, initialsFromName } from "./view-helpers.js"
 
 const app = document.querySelector("#app")
 const LAST_PROFILE_KEY = "fakebook:lastProfileId"
@@ -114,18 +116,6 @@ function resolveImageSrc(image) {
   return ""
 }
 
-function initialsFromName(name) {
-  const letters = name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0] ?? "")
-    .join("")
-    .toUpperCase()
-
-  return letters || "?"
-}
-
 function iconPlus() {
   return `
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -202,7 +192,7 @@ function closeOpenOverlays(target, { ignoreAccount = false, ignoreReaction = fal
   if (
     !ignoreReaction &&
     state.feed.openReactionPostId &&
-    !target.closest(".reaction-picker, .reaction-panel-inline")
+    !target.closest(".reaction-picker, .reaction-panel")
   ) {
     state.feed.openReactionPostId = null
     changed = true
@@ -301,7 +291,7 @@ function renderHeader() {
         <div class="brand">
           <span class="brand__icon">${escapeHtml(state.config.platformIcon)}</span>
           <div>
-            <h1>${escapeHtml(state.config.platformName)} test</h1>
+            <h1>${escapeHtml(state.config.platformName)}</h1>
           </div>
         </div>
         ${
@@ -397,7 +387,7 @@ function renderCreateProfile() {
         </label>
         <label>
           Picture (optional)
-          <input id="create-profile-picture-input" type="file" accept="image/jpeg,image/png,image/webp" />
+          <input id="create-profile-picture-input" type="file" accept="image/*" />
         </label>
         ${
           state.profileCreatePicture
@@ -466,12 +456,12 @@ function renderProfileView() {
                 id="edit-profile-picture-input"
                 class="profile-photo-input"
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
+                accept="image/*"
               />
             </div>
             <div class="profile-photo-meta">
               <p class="list-item__title"><strong>Profile picture</strong></p>
-              <p class="muted">Use a square image for best results. JPEG/PNG/WebP supported.</p>
+              <p class="muted">Use a square image for best results.</p>
               <div class="row row--tight">
                 <label class="btn-file btn-file--primary" for="edit-profile-picture-input">Upload new</label>
                 <button type="button" data-action="remove-profile-picture">Remove picture</button>
@@ -497,10 +487,10 @@ function renderReactorNames(reactorProfileIds) {
   const names = uniqueIds.map(
     (profileId) => state.profileMap.get(profileId)?.name ?? "Unknown user",
   )
-  const visibleNames = names.slice(0, 4)
-  const overflow = names.length - visibleNames.length
-  const namesLabel = `${visibleNames.join(", ")}${overflow > 0 ? ` +${overflow} more` : ""}`
-  const label = `${namesLabel} reacted to this`
+  const label = buildReactorNamesLabel(names)
+  if (!label) {
+    return ""
+  }
 
   return `<p class="reaction-names">${escapeHtml(label)}</p>`
 }
@@ -580,11 +570,11 @@ function renderPostCard(post) {
         </div>
         ${
           mine
-            ? `<div class="row row--tight">
-                <button class="icon-btn" data-action="edit-post" data-post-id="${escapeHtml(post.id)}" aria-label="Edit post">
+            ? `<div class="post__controls">
+                <button class="icon-btn post-action-btn" data-action="edit-post" data-post-id="${escapeHtml(post.id)}" aria-label="Edit post">
                   ${iconEdit()}
                 </button>
-                <button class="icon-btn icon-btn--danger" data-action="delete-post" data-post-id="${escapeHtml(post.id)}" aria-label="Delete post">
+                <button class="icon-btn icon-btn--danger post-action-btn" data-action="delete-post" data-post-id="${escapeHtml(post.id)}" aria-label="Delete post">
                   ${iconTrash()}
                 </button>
               </div>`
@@ -630,19 +620,17 @@ function renderPostCard(post) {
           }
         </div>
         <div class="post__actions">
-          <div class="reaction-picker ${isReactionPanelOpen ? "reaction-picker--open" : ""}">
+          <div class="reaction-picker">
             <button
               class="icon-btn reaction-trigger ${summary.mine.length > 0 ? "reaction-trigger--active" : ""}"
               data-action="toggle-reaction-panel"
               data-post-id="${escapeHtml(post.id)}"
+              aria-expanded="${isReactionPanelOpen ? "true" : "false"}"
               aria-label="${summary.mine.length > 0 ? "Change reactions" : "Open reactions"}"
               title="${summary.mine.length > 0 ? "Manage reactions" : "React"}"
             >
               ${iconReact()}
             </button>
-            <div class="reaction-panel--desktop">
-              ${renderReactionButtons(post.id, summary.mine)}
-            </div>
           </div>
           <button
             class="comment-toggle ${isCommentsOpen ? "comment-toggle--active" : ""}"
@@ -657,7 +645,7 @@ function renderPostCard(post) {
         </div>
         ${
           isReactionPanelOpen
-            ? `<div class="reaction-panel-inline">${renderReactionButtons(post.id, summary.mine)}</div>`
+            ? `<div class="reaction-panel">${renderReactionButtons(post.id, summary.mine)}</div>`
             : ""
         }
       </div>
@@ -775,7 +763,7 @@ function renderPostEditor() {
         <p id="post-text-counter" class="muted counter">${state.postEditor.text.length}/${LIMITS.postTextMax}</p>
         <label>
           Add images (up to ${LIMITS.maxPostImages})
-          <input id="post-images-input" type="file" accept="image/jpeg,image/png,image/webp" multiple />
+          <input id="post-images-input" type="file" accept="image/*" multiple />
         </label>
         ${
           state.postEditor.images.length
@@ -867,7 +855,8 @@ function handleAppError(error, fallbackMessage) {
     return
   }
 
-  setNotice("error", fallbackMessage)
+  const details = typeof error?.message === "string" ? error.message.trim() : ""
+  setNotice("error", details ? `${fallbackMessage} ${details}` : fallbackMessage)
 }
 
 async function goToPosts() {
@@ -912,6 +901,8 @@ function attachEvents() {
         render()
       } catch (error) {
         handleAppError(error, "Failed to process profile image.")
+      } finally {
+        target.value = ""
       }
       return
     }
@@ -927,6 +918,8 @@ function attachEvents() {
         render()
       } catch (error) {
         handleAppError(error, "Failed to process profile image.")
+      } finally {
+        target.value = ""
       }
       return
     }
@@ -951,6 +944,8 @@ function attachEvents() {
         render()
       } catch (error) {
         handleAppError(error, "One or more images could not be processed.")
+      } finally {
+        target.value = ""
       }
     }
   })
@@ -1335,6 +1330,7 @@ function attachEvents() {
 
 async function bootstrap() {
   state.config = await loadConfig()
+  applyRuntimeLimitsFromConfig(state.config)
   document.title = `${state.config.platformIcon} ${state.config.platformName}`
   state.ai.activityLevel = aiRuntime.loadActivityLevel()
   await refreshProfiles()

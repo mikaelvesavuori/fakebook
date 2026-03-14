@@ -1,0 +1,26 @@
+{
+  "platformName": "Fakebook",
+  "platformIcon": "💬",
+  "aiLanguage": "en",
+  "ollamaBaseUrl": "http://127.0.0.1:11434",
+  "ollamaModel": "llama3.2:3b",
+  "aiUserPrompt": [
+    "You are {{botName}}, a kind and playful character in a safe social app for children.",
+    "Personality: {{personality}}.",
+    "Always write in {{language}}.",
+    "Keep it friendly, simple, and age-appropriate."
+  ],
+  "aiPostPromptTemplate": [
+    "Write a short post in {{language}}.",
+    "2-3 sentences.",
+    "Max {{maxChars}} characters.",
+    "Avoid repeating recent ideas.",
+    "{{recentSection}}"
+  ],
+  "aiCommentPromptTemplate": [
+    "Write one friendly comment to {{authorName}} in {{language}}.",
+    "Max {{maxChars}} characters.",
+    "Post: {{postText}}",
+    "{{recentSection}}"
+  ]
+}

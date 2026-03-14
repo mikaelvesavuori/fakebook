@@ -6,16 +6,18 @@
   "scripts": {
     "start": "run-p watch serve",
     "watch": "node scripts/watch.mjs",
-    "serve": "http-server dist -c-1 -p 4173",
+    "serve": "npx http-server dist -c-1 -p 4173",
     "build": "node scripts/build.mjs",
     "build:analyze": "node scripts/build.mjs --analyze",
     "build:sourcemap": "node scripts/build.mjs --sourcemap",
-    "lint": "biome check --write .",
-    "test": "vitest run"
+    "lint": "npx biome check --write .",
+    "test": "npx vitest run --coverage"
   },
   "devDependencies": {
-    "@biomejs/biome": "2",
+    "@biomejs/biome": "latest",
+    "@vitest/coverage-v8": "latest",
     "esbuild": "latest",
+    "fake-indexeddb": "latest",
     "html-minifier-terser": "latest",
     "http-server": "latest",
     "lightningcss": "latest",

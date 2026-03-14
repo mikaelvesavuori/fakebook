@@ -46,6 +46,25 @@ function sanitizeConfig(config) {
   const platformName = sanitizeString(config.platformName, DEFAULT_CONFIG.platformName)
 
   const platformIcon = sanitizeString(config.platformIcon, DEFAULT_CONFIG.platformIcon)
+  const profileImageMaxBytesKb = Math.round(
+    sanitizeNumber(
+      config.profileImageMaxBytesKb,
+      DEFAULT_CONFIG.profileImageMaxBytesKb,
+      64,
+      2048,
+    ),
+  )
+  const postImageMaxBytesKb = Math.round(
+    sanitizeNumber(config.postImageMaxBytesKb, DEFAULT_CONFIG.postImageMaxBytesKb, 128, 4096),
+  )
+  const postImagesTotalMaxBytesKb = Math.round(
+    sanitizeNumber(
+      config.postImagesTotalMaxBytesKb,
+      DEFAULT_CONFIG.postImagesTotalMaxBytesKb,
+      512,
+      51200,
+    ),
+  )
 
   const aiLanguage = sanitizeString(config.aiLanguage, DEFAULT_CONFIG.aiLanguage)
   const ollamaBaseUrl = sanitizeString(config.ollamaBaseUrl, DEFAULT_CONFIG.ollamaBaseUrl)
@@ -86,6 +105,9 @@ function sanitizeConfig(config) {
   return {
     platformName,
     platformIcon,
+    profileImageMaxBytesKb,
+    postImageMaxBytesKb,
+    postImagesTotalMaxBytesKb,
     aiLanguage,
     ollamaBaseUrl,
     ollamaModel,

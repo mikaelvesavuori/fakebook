@@ -13,21 +13,19 @@ export function resizeDimensions(width, height, maxDimension = LIMITS.maxImageDi
   }
 }
 
-function readAsDataURL(file) {
+function loadImageFromFile(file) {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result)
-    reader.onerror = () => reject(reader.error ?? new Error("Failed reading file"))
-    reader.readAsDataURL(file)
-  })
-}
-
-function loadImage(dataUrl) {
-  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file)
     const image = new Image()
-    image.onload = () => resolve(image)
-    image.onerror = () => reject(new Error("Unable to decode image"))
-    image.src = dataUrl
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl)
+      resolve(image)
+    }
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl)
+      reject(new Error("Unable to decode image"))
+    }
+    image.src = objectUrl
   })
 }
 
@@ -73,6 +71,37 @@ export function estimateImageBytes(image) {
   return 0
 }
 
+const ALLOWED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"]
+
+function hasAllowedImageExtension(fileName) {
+  const lower = fileName.toLowerCase()
+  return ALLOWED_IMAGE_EXTENSIONS.some((extension) => lower.endsWith(extension))
+}
+
+function isHeicFile(file) {
+  const type = (file.type || "").toLowerCase()
+  if (type.includes("heic") || type.includes("heif")) {
+    return true
+  }
+  return file.name ? /\.(heic|heif)$/i.test(file.name) : false
+}
+
+function isSupportedInputImage(file) {
+  if (ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    return true
+  }
+
+  if (file.type && file.type.startsWith("image/")) {
+    return true
+  }
+
+  if (!file.type && file.name) {
+    return hasAllowedImageExtension(file.name)
+  }
+
+  return false
+}
+
 function processingProfile(kind) {
   if (kind === "profile") {
     return {
@@ -103,7 +132,9 @@ async function compressImage(image, { maxDimension, quality, maxBytes }) {
     }
 
     context.drawImage(image, 0, 0, width, height)
-    const blob = await canvasToBlob(canvas, "image/webp", currentQuality)
+    const blob = await canvasToBlob(canvas, "image/webp", currentQuality).catch(() =>
+      canvasToBlob(canvas, "image/jpeg", currentQuality),
+    )
 
     if (blob.size <= maxBytes) {
       return blob
@@ -127,12 +158,21 @@ async function compressImage(image, { maxDimension, quality, maxBytes }) {
 }
 
 export async function processImageFile(file, { kind = "post" } = {}) {
-  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-    throw new Error("Unsupported image type. Use JPEG, PNG, or WebP.")
+  if (!isSupportedInputImage(file)) {
+    throw new Error("Unsupported image type. Use a standard image format.")
   }
 
-  const sourceUrl = await readAsDataURL(file)
-  const image = await loadImage(sourceUrl)
+  let image
+  try {
+    image = await loadImageFromFile(file)
+  } catch (error) {
+    if (isHeicFile(file)) {
+      throw new Error(
+        "This HEIC/HEIF photo could not be decoded here. Try a different photo or set iPhone Camera format to Most Compatible (JPEG).",
+      )
+    }
+    throw error
+  }
   return compressImage(image, processingProfile(kind))
 }
 
