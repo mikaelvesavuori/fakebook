@@ -1,11 +1,14 @@
-import { cp, mkdir, watch } from "node:fs/promises"
+import { cp, mkdir, readFile, watch, writeFile } from "node:fs/promises"
 import { context } from "esbuild"
 
 const outdir = "dist"
+const assetVersion = Date.now().toString(36)
 
 async function copyStatic() {
   await mkdir(outdir, { recursive: true })
-  await cp("index.html", `${outdir}/index.html`)
+  const sourceHtml = await readFile("index.html", "utf8")
+  const versionedHtml = sourceHtml.replaceAll("__ASSET_VERSION__", assetVersion)
+  await writeFile(`${outdir}/index.html`, versionedHtml)
   await cp("config.json", `${outdir}/config.json`)
 }
 
@@ -19,6 +22,7 @@ const ctx = await context({
   outdir,
   define: {
     __DEV__: "true",
+    __ASSET_VERSION__: JSON.stringify(assetVersion),
     "process.env.NODE_ENV": '"development"',
   },
   logLevel: "info",

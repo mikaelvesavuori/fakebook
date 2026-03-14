@@ -9,6 +9,7 @@ const args = new Set(process.argv.slice(2))
 const sourcemap = args.has("--sourcemap")
 const analyze = args.has("--analyze")
 const dev = args.has("--dev")
+const assetVersion = Date.now().toString(36)
 
 await rm(outdir, { recursive: true, force: true })
 await mkdir(outdir, { recursive: true })
@@ -27,6 +28,7 @@ const result = await build({
   treeShaking: true,
   define: {
     __DEV__: String(dev),
+    __ASSET_VERSION__: JSON.stringify(assetVersion),
     "process.env.NODE_ENV": dev ? '"development"' : '"production"',
   },
   metafile: analyze,
@@ -36,9 +38,10 @@ const result = await build({
 await cp("config.json", `${outdir}/config.json`)
 
 const sourceHtml = await readFile("index.html", "utf8")
+const versionedHtml = sourceHtml.replaceAll("__ASSET_VERSION__", assetVersion)
 const outputHtml = dev
-  ? sourceHtml
-  : await minifyHtml(sourceHtml, {
+  ? versionedHtml
+  : await minifyHtml(versionedHtml, {
       collapseWhitespace: true,
       removeComments: true,
       minifyCSS: true,

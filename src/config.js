@@ -107,7 +107,11 @@ function sanitizeConfig(config) {
 
 export async function loadConfig() {
   try {
-    const response = await fetch("./config.json")
+    const cacheSuffix =
+      typeof __ASSET_VERSION__ === "string" && __ASSET_VERSION__
+        ? `?v=${encodeURIComponent(__ASSET_VERSION__)}`
+        : ""
+    const response = await fetch(`./config.json${cacheSuffix}`, { cache: "no-store" })
     if (!response.ok) {
       throw new Error(`Failed loading config (${response.status})`)
     }

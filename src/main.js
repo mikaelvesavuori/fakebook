@@ -199,7 +199,11 @@ function closeOpenOverlays(target, { ignoreAccount = false, ignoreReaction = fal
     changed = true
   }
 
-  if (!ignoreReaction && state.feed.openReactionPostId && !target.closest(".reaction-picker")) {
+  if (
+    !ignoreReaction &&
+    state.feed.openReactionPostId &&
+    !target.closest(".reaction-picker, .reaction-panel-inline")
+  ) {
     state.feed.openReactionPostId = null
     changed = true
   }
@@ -297,7 +301,7 @@ function renderHeader() {
         <div class="brand">
           <span class="brand__icon">${escapeHtml(state.config.platformIcon)}</span>
           <div>
-            <h1>${escapeHtml(state.config.platformName)}</h1>
+            <h1>${escapeHtml(state.config.platformName)} test</h1>
           </div>
         </div>
         ${
@@ -533,6 +537,15 @@ function renderPostComments(postId, comments) {
   `
 }
 
+function renderReactionButtons(postId, selectedReactions) {
+  return REACTIONS.map((emoji) => {
+    const selected = selectedReactions.includes(emoji)
+    return `<button class="reaction-emoji ${selected ? "reaction-emoji--active" : ""}" data-action="react" data-post-id="${escapeHtml(
+      postId,
+    )}" data-emoji="${emoji}" aria-label="React with ${emoji}">${emoji}</button>`
+  }).join("")
+}
+
 function renderPostCard(post) {
   const summary = state.feed.reactionByPostId.get(post.id) ?? {
     counts: {},
@@ -627,13 +640,8 @@ function renderPostCard(post) {
             >
               ${iconReact()}
             </button>
-            <div class="reaction-panel">
-              ${REACTIONS.map((emoji) => {
-                const selected = summary.mine.includes(emoji)
-                return `<button class="reaction-emoji ${selected ? "reaction-emoji--active" : ""}" data-action="react" data-post-id="${escapeHtml(
-                  post.id,
-                )}" data-emoji="${emoji}" aria-label="React with ${emoji}">${emoji}</button>`
-              }).join("")}
+            <div class="reaction-panel--desktop">
+              ${renderReactionButtons(post.id, summary.mine)}
             </div>
           </div>
           <button
@@ -647,6 +655,11 @@ function renderPostCard(post) {
             <span class="comments-badge">${comments.length}</span>
           </button>
         </div>
+        ${
+          isReactionPanelOpen
+            ? `<div class="reaction-panel-inline">${renderReactionButtons(post.id, summary.mine)}</div>`
+            : ""
+        }
       </div>
       ${renderReactorNames(summary.reactorProfileIds)}
       ${isCommentsOpen ? renderPostComments(post.id, comments) : ""}
