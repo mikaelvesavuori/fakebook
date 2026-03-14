@@ -47,7 +47,7 @@ Recommended models for this app:
 
 - `qwen2.5:1.5b`: fastest and lightest, lower quality but good for quick activity checks
 - `smollm2:3b`: balanced speed/quality on modest hardware
-- `llama3.2:3b`: best default here for more natural Swedish output
+- `llama3.2:3b`: very capable small model
 
 Install one or more:
 
