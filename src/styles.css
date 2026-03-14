@@ -1,3 +1,19 @@
+@font-face {
+  font-family: "InterVariable";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("https://rsms.me/inter/font-files/InterVariable.woff2?v=4.1") format("woff2");
+}
+
+@font-face {
+  font-family: "InterVariable";
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("https://rsms.me/inter/font-files/InterVariable-Italic.woff2?v=4.1") format("woff2");
+}
+
 :root {
   --bg: #f3f6fc;
   --bg-alt: #edf2fb;
@@ -89,7 +105,7 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: "InterVariable", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
   color: var(--text);
   background: var(--gradient-orb-left), var(--gradient-orb-right), var(--gradient-page);
 }
