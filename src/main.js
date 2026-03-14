@@ -1,6 +1,7 @@
 import "./styles.css"
+import { createAiRuntime, createAiState } from "./ai-runtime.js"
 import { loadConfig } from "./config.js"
-import { LIMITS, REACTIONS } from "./constants.js"
+import { DEFAULT_CONFIG, LIMITS, REACTIONS } from "./constants.js"
 import {
   createComment,
   createPost,
@@ -38,10 +39,7 @@ function createFeedState() {
 }
 
 const state = {
-  config: {
-    platformName: "Fakebook",
-    platformIcon: "💬",
-  },
+  config: { ...DEFAULT_CONFIG },
   view: "signin",
   notice: null,
   currentProfileId: null,
@@ -58,8 +56,24 @@ const state = {
   },
   ui: {
     accountMenuOpen: false,
+    objectUrls: new Set(),
   },
+  ai: createAiState(),
 }
+
+const aiRuntime = createAiRuntime({
+  appState: state,
+  render,
+  setNotice,
+  refreshFeed,
+  listPosts,
+  createPost,
+  createComment,
+  getReactionSummary,
+  toggleReaction,
+  reactions: REACTIONS,
+  storage: typeof localStorage === "undefined" ? null : localStorage,
+})
 
 function setNotice(type, message) {
   state.notice = { type, message }
@@ -73,6 +87,31 @@ function setNotice(type, message) {
 
 function currentProfile() {
   return state.profileMap.get(state.currentProfileId) ?? null
+}
+
+function revokeObjectUrls() {
+  for (const url of state.ui.objectUrls) {
+    URL.revokeObjectURL(url)
+  }
+  state.ui.objectUrls.clear()
+}
+
+function resolveImageSrc(image) {
+  if (!image) {
+    return ""
+  }
+
+  if (typeof image === "string") {
+    return image
+  }
+
+  if (image instanceof Blob) {
+    const objectUrl = URL.createObjectURL(image)
+    state.ui.objectUrls.add(objectUrl)
+    return objectUrl
+  }
+
+  return ""
 }
 
 function initialsFromName(name) {
@@ -168,6 +207,10 @@ function closeOpenOverlays(target, { ignoreAccount = false, ignoreReaction = fal
   return changed
 }
 
+function botSignInProfiles() {
+  return state.profiles
+}
+
 async function refreshProfiles() {
   state.profiles = await listProfiles()
   state.profileMap = new Map(state.profiles.map((profile) => [profile.id, profile]))
@@ -223,6 +266,7 @@ function signIn(profileId) {
 
 function signOut() {
   if (window.confirm("Sign out?")) {
+    aiRuntime.stop()
     localStorage.removeItem(LAST_PROFILE_KEY)
     state.currentProfileId = null
     state.view = "signin"
@@ -245,6 +289,7 @@ function renderNotice() {
 function renderHeader() {
   const signedIn = Boolean(currentProfile())
   const profile = currentProfile()
+  const profilePictureSrc = profile?.picture ? resolveImageSrc(profile.picture) : ""
 
   return `
     <header class="topbar">
@@ -265,13 +310,14 @@ function renderHeader() {
                   aria-expanded="${state.ui.accountMenuOpen ? "true" : "false"}"
                 >
                   ${
-                    profile.picture
-                      ? `<img class="avatar avatar--sm" src="${escapeHtml(profile.picture)}" alt="${escapeHtml(profile.name)}" />`
+                    profilePictureSrc
+                      ? `<img class="avatar avatar--sm" src="${escapeHtml(profilePictureSrc)}" alt="${escapeHtml(profile.name)}" />`
                       : `<span class="avatar avatar--sm avatar--placeholder">${escapeHtml(initialsFromName(profile.name))}</span>`
                   }
                 </button>
                 <div class="account__menu ${state.ui.accountMenuOpen ? "account__menu--open" : ""}">
                   <button data-action="goto-profile">Profile</button>
+                  <button data-action="goto-settings">Settings</button>
                   <button class="danger" data-action="signout">Sign out</button>
                 </div>
               </div>`
@@ -283,26 +329,28 @@ function renderHeader() {
 }
 
 function renderSignIn() {
+  const profiles = botSignInProfiles()
+
   return `
     <section class="panel panel--narrow">
       <h2 class="panel__title">Sign in</h2>
       <p class="panel__text">Choose an existing profile or create a new one.</p>
       <div class="stack stack--lg">
         ${
-          state.profiles.length
-            ? state.profiles
+          profiles.length
+            ? profiles
                 .map(
                   (profile) => `
                     <article class="list-item">
                       <div class="list-item__profile">
                         ${
                           profile.picture
-                            ? `<img class="avatar" src="${escapeHtml(profile.picture)}" alt="${escapeHtml(profile.name)}" />`
+                            ? `<img class="avatar" src="${escapeHtml(resolveImageSrc(profile.picture))}" alt="${escapeHtml(profile.name)}" />`
                             : `<span class="avatar avatar--placeholder">${escapeHtml(initialsFromName(profile.name))}</span>`
                         }
                         <div>
                         <p class="list-item__title"><strong>${escapeHtml(profile.name)}</strong></p>
-                        <p class="muted">${escapeHtml(profile.location || "No location")}</p>
+                        <p class="muted">${escapeHtml(profile.isBot ? "AI user profile" : profile.location || "No location")}</p>
                         </div>
                       </div>
                       <button class="primary" data-action="signin" data-profile-id="${escapeHtml(profile.id)}">Sign in</button>
@@ -310,7 +358,7 @@ function renderSignIn() {
                   `,
                 )
                 .join("")
-            : '<p class="muted">No profiles yet.</p>'
+            : '<p class="muted">No profiles yet. Create your first profile.</p>'
         }
       </div>
       <button class="primary" data-action="goto-create-profile">Create profile</button>
@@ -336,11 +384,22 @@ function renderCreateProfile() {
           Description
           <textarea name="description" maxlength="${LIMITS.descriptionMax}"></textarea>
         </label>
+        <label class="toggle-field">
+          <span class="toggle-field__line">
+            <input type="checkbox" name="isBot" />
+            <span>AI user profile</span>
+          </span>
+          <span class="toggle-field__hint">Uses description as personality when AI users are enabled.</span>
+        </label>
         <label>
           Picture (optional)
           <input id="create-profile-picture-input" type="file" accept="image/jpeg,image/png,image/webp" />
         </label>
-        ${state.profileCreatePicture ? `<img class="preview" src="${state.profileCreatePicture}" alt="Profile preview" />` : ""}
+        ${
+          state.profileCreatePicture
+            ? `<img class="preview" src="${escapeHtml(resolveImageSrc(state.profileCreatePicture))}" alt="Profile preview" />`
+            : ""
+        }
         <div class="row row--end">
           <button class="primary" type="submit">Create profile</button>
           <button type="button" data-action="cancel-create-profile">Cancel</button>
@@ -357,6 +416,7 @@ function renderProfileView() {
   }
 
   const picture = state.profileEditPicture ?? profile.picture
+  const pictureSrc = picture ? resolveImageSrc(picture) : ""
 
   return `
     <div class="profile-view">
@@ -384,11 +444,18 @@ function renderProfileView() {
               profile.description || "",
             )}</textarea>
           </label>
+          <label class="toggle-field">
+            <span class="toggle-field__line">
+              <input type="checkbox" name="isBot" ${profile.isBot ? "checked" : ""} />
+              <span>AI user profile</span>
+            </span>
+            <span class="toggle-field__hint">Uses description as personality when AI users are enabled.</span>
+          </label>
           <div class="profile-photo-card">
             <div class="profile-photo-preview-wrap">
               ${
-                picture
-                  ? `<img class="preview preview--avatar" src="${picture}" alt="Profile picture" />`
+                pictureSrc
+                  ? `<img class="preview preview--avatar" src="${escapeHtml(pictureSrc)}" alt="Profile picture" />`
                   : `<span class="preview preview--avatar avatar--placeholder">${escapeHtml(initialsFromName(profile.name))}</span>`
               }
               <input
@@ -477,6 +544,7 @@ function renderPostCard(post) {
   const mine = post.authorId === state.currentProfileId
   const authorName = author?.name ?? "Unknown profile"
   const authorPicture = author?.picture ?? null
+  const authorPictureSrc = authorPicture ? resolveImageSrc(authorPicture) : ""
   const isReactionPanelOpen = state.feed.openReactionPostId === post.id
   const isCommentsOpen = state.feed.openCommentsPostId === post.id
   const reactionEntries = Object.entries(summary.counts).filter(([, count]) => count > 0)
@@ -486,8 +554,8 @@ function renderPostCard(post) {
       <header class="post__header">
         <div class="post__author">
           ${
-            authorPicture
-              ? `<img class="avatar" src="${escapeHtml(authorPicture)}" alt="${escapeHtml(authorName)}" />`
+            authorPictureSrc
+              ? `<img class="avatar" src="${escapeHtml(authorPictureSrc)}" alt="${escapeHtml(authorName)}" />`
               : `<span class="avatar avatar--placeholder">${escapeHtml(initialsFromName(authorName))}</span>`
           }
           <div class="post__identity">
@@ -518,7 +586,10 @@ function renderPostCard(post) {
       ${
         post.images.length
           ? `<div class="gallery">${post.images
-              .map((image, index) => `<img src="${image}" alt="Post image ${index + 1}" />`)
+              .map(
+                (image, index) =>
+                  `<img src="${escapeHtml(resolveImageSrc(image))}" alt="Post image ${index + 1}" />`,
+              )
               .join("")}</div>`
           : ""
       }
@@ -583,6 +654,64 @@ function renderPostCard(post) {
   `
 }
 
+function renderAiControl() {
+  const botCount = aiRuntime.getBotProfiles().length
+  const toggleDisabled = !state.ai.enabled && botCount === 0
+  const buttonLabel =
+    state.ai.status === "loading"
+      ? "Starting..."
+      : state.ai.enabled
+        ? "Stop AI users"
+        : "Start AI users"
+
+  return `
+    <section class="ai-control">
+      <div class="ai-control__meta">
+        <p class="ai-control__title">AI users</p>
+        <p class="ai-control__status">
+          ${escapeHtml(aiRuntime.getStatusLabel())} · ${botCount} AI user profile${botCount === 1 ? "" : "s"}
+          ${
+            state.ai.error
+              ? `<br /><span class="ai-control__error">${escapeHtml(state.ai.error)}</span>`
+              : ""
+          }
+        </p>
+      </div>
+      <div class="ai-control__controls">
+        <label class="ai-control__slider" for="ai-activity-level">
+          <span>Activity: ${escapeHtml(aiRuntime.getActivityLabel())}</span>
+          <input
+            id="ai-activity-level"
+            data-action="ai-activity"
+            type="range"
+            min="1"
+            max="5"
+            step="1"
+            value="${state.ai.activityLevel}"
+          />
+        </label>
+      </div>
+      <button
+        data-action="toggle-ai-mode"
+        ${toggleDisabled ? "disabled" : ""}
+      >${escapeHtml(buttonLabel)}</button>
+    </section>
+  `
+}
+
+function renderSettingsView() {
+  return `
+    <div class="settings-view">
+      <button class="back-nav" data-action="goto-posts">← Back to posts</button>
+      <section class="panel">
+        <h2 class="panel__title">Settings</h2>
+        <p class="panel__text">Manage local AI users and activity level.</p>
+        ${renderAiControl()}
+      </section>
+    </div>
+  `
+}
+
 function renderPostsView() {
   const filterLabel = state.feed.filter === "all" ? "All posts" : "My posts"
 
@@ -641,7 +770,7 @@ function renderPostEditor() {
                 .map(
                   (image, index) => `
                     <figure>
-                      <img src="${image}" alt="Selected image ${index + 1}" />
+                      <img src="${escapeHtml(resolveImageSrc(image))}" alt="Selected image ${index + 1}" />
                       <button type="button" data-action="remove-editor-image" data-image-index="${index}">Remove</button>
                     </figure>
                   `,
@@ -670,6 +799,10 @@ function renderMain() {
     return renderProfileView()
   }
 
+  if (state.view === "settings") {
+    return renderSettingsView()
+  }
+
   if (state.view === "post-editor") {
     return renderPostEditor()
   }
@@ -690,6 +823,7 @@ function renderFloatingActionButton() {
 }
 
 function render() {
+  revokeObjectUrls()
   app.innerHTML = `
     ${renderHeader()}
     ${renderNotice()}
@@ -737,6 +871,11 @@ function attachEvents() {
       return
     }
 
+    if (target.matches("input[data-action='ai-activity']") && target instanceof HTMLInputElement) {
+      aiRuntime.setActivityLevel(target.value)
+      return
+    }
+
     if (target.matches("textarea[name='text']") && target instanceof HTMLTextAreaElement) {
       state.postEditor.text = target.value
       syncPostTextCounter()
@@ -756,7 +895,7 @@ function attachEvents() {
       }
 
       try {
-        state.profileCreatePicture = await processImageFile(file)
+        state.profileCreatePicture = await processImageFile(file, { kind: "profile" })
         render()
       } catch (error) {
         handleAppError(error, "Failed to process profile image.")
@@ -771,7 +910,7 @@ function attachEvents() {
       }
 
       try {
-        state.profileEditPicture = await processImageFile(file)
+        state.profileEditPicture = await processImageFile(file, { kind: "profile" })
         render()
       } catch (error) {
         handleAppError(error, "Failed to process profile image.")
@@ -792,7 +931,9 @@ function attachEvents() {
       }
 
       try {
-        const processed = await processImageFiles(files, slots)
+        const processed = await processImageFiles(files, slots, {
+          existingImages: state.postEditor.images,
+        })
         state.postEditor.images = [...state.postEditor.images, ...processed]
         render()
       } catch (error) {
@@ -866,6 +1007,13 @@ function attachEvents() {
         return
       }
 
+      if (action === "goto-settings") {
+        state.view = "settings"
+        state.ui.accountMenuOpen = false
+        render()
+        return
+      }
+
       if (action === "signout") {
         state.ui.accountMenuOpen = false
         signOut()
@@ -885,6 +1033,7 @@ function attachEvents() {
         await deleteProfile(profile.id)
         localStorage.removeItem(LAST_PROFILE_KEY)
         await refreshProfiles()
+        aiRuntime.stop()
         state.currentProfileId = null
         state.view = "signin"
         state.ui.accountMenuOpen = false
@@ -909,6 +1058,11 @@ function attachEvents() {
         state.view = "post-editor"
         state.ui.accountMenuOpen = false
         render()
+        return
+      }
+
+      if (action === "toggle-ai-mode") {
+        await aiRuntime.setEnabled(!state.ai.enabled)
         return
       }
 
@@ -1031,6 +1185,7 @@ function attachEvents() {
           name: String(values.get("name") ?? ""),
           location: String(values.get("location") ?? ""),
           description: String(values.get("description") ?? ""),
+          isBot: values.get("isBot") === "on",
           picture: state.profileCreatePicture,
         })
 
@@ -1059,6 +1214,7 @@ function attachEvents() {
           name: String(values.get("name") ?? ""),
           location: String(values.get("location") ?? ""),
           description: String(values.get("description") ?? ""),
+          isBot: values.get("isBot") === "on",
           picture: state.profileEditPicture ?? profile.picture,
         })
 
@@ -1167,6 +1323,7 @@ function attachEvents() {
 async function bootstrap() {
   state.config = await loadConfig()
   document.title = `${state.config.platformIcon} ${state.config.platformName}`
+  state.ai.activityLevel = aiRuntime.loadActivityLevel()
   await refreshProfiles()
   const rememberedProfileId = localStorage.getItem(LAST_PROFILE_KEY)
 

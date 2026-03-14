@@ -12,6 +12,7 @@ async function copyStatic() {
 const ctx = await context({
   entryPoints: ["src/main.js"],
   bundle: true,
+  splitting: true,
   format: "esm",
   sourcemap: true,
   target: ["es2022"],

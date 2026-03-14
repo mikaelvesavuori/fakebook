@@ -5,6 +5,7 @@ export function validateProfile(input) {
   const name = input.name.trim()
   const location = input.location.trim()
   const description = input.description.trim()
+  const isBot = Boolean(input.isBot)
 
   if (name.length < LIMITS.profileNameMin || name.length > LIMITS.profileNameMax) {
     errors.push(`Name must be ${LIMITS.profileNameMin}-${LIMITS.profileNameMax} characters.`)
@@ -25,6 +26,7 @@ export function validateProfile(input) {
       name,
       location,
       description,
+      isBot,
       picture: input.picture ?? null,
     },
   }

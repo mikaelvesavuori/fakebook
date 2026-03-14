@@ -205,6 +205,11 @@ body {
   gap: 0.7rem;
 }
 
+.settings-view {
+  display: grid;
+  gap: 0.7rem;
+}
+
 .back-nav {
   width: fit-content;
   height: 2rem;
@@ -246,6 +251,76 @@ body {
   margin: 0.35rem 0 0;
   color: var(--muted);
   line-height: 1.45;
+}
+
+.ai-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.78rem 0.86rem;
+  border: 1px solid var(--line);
+  border-radius: 0.88rem;
+  background: var(--surface-soft);
+}
+
+.ai-control__meta {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.ai-control__controls {
+  min-width: 12rem;
+}
+
+.ai-control__title {
+  margin: 0;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.ai-control__status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.ai-control__error {
+  color: var(--danger-text-strong);
+}
+
+.ai-control__slider {
+  display: grid;
+  gap: 0.34rem;
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
+.toggle-field {
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 0.8rem;
+  background: var(--surface-soft);
+  color: var(--text);
+  gap: 0.4rem;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.toggle-field__line {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.52rem;
+}
+
+.toggle-field__hint {
+  color: var(--muted);
+  font-size: 0.78rem;
 }
 
 .stack {
@@ -309,6 +384,30 @@ textarea {
     border-color 130ms ease,
     box-shadow 130ms ease,
     background 130ms ease;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  width: auto;
+  height: 1.05rem;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+input[type="range"] {
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  accent-color: var(--accent);
+}
+
+input[type="range"]:hover,
+input[type="range"]:focus-visible {
+  border: none;
+  box-shadow: none;
+  background: transparent;
 }
 
 input::placeholder,
@@ -964,6 +1063,20 @@ figure button {
   .reactions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .ai-control {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ai-control button {
+    width: 100%;
+  }
+
+  .ai-control__controls {
+    min-width: 0;
+    width: 100%;
   }
 
   .post__header {

@@ -8,10 +8,12 @@ describe("validateProfile", () => {
       name: "Alex",
       location: "Stockholm",
       description: "Developer",
+      isBot: true,
     })
 
     expect(result.valid).toBe(true)
     expect(result.errors).toEqual([])
+    expect(result.value.isBot).toBe(true)
   })
 
   it("rejects empty name", () => {

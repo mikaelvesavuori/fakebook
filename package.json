@@ -16,8 +16,10 @@
   "devDependencies": {
     "@biomejs/biome": "2",
     "esbuild": "latest",
-    "http-server": "14",
-    "npm-run-all": "4",
-    "vitest": "4"
+    "html-minifier-terser": "latest",
+    "http-server": "latest",
+    "lightningcss": "latest",
+    "npm-run-all": "latest",
+    "vitest": "latest"
   }
 }

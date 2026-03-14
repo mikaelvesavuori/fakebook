@@ -1,7 +1,7 @@
 import { generateEntityId, generateShortId } from "./utils.js"
 
 const DB_NAME = "fakebook-db"
-const DB_VERSION = 2
+const DB_VERSION = 3
 
 let dbPromise
 
@@ -35,8 +35,9 @@ export function getDb() {
     dbPromise = new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION)
 
-      request.onupgradeneeded = () => {
+      request.onupgradeneeded = (event) => {
         const db = request.result
+        const oldVersion = event.oldVersion
 
         if (!db.objectStoreNames.contains("profiles")) {
           db.createObjectStore("profiles", { keyPath: "id" })
@@ -64,6 +65,22 @@ export function getDb() {
         if (!db.objectStoreNames.contains("appmeta")) {
           db.createObjectStore("appmeta", { keyPath: "key" })
         }
+
+        if (oldVersion < 3) {
+          const profiles = request.transaction.objectStore("profiles")
+          const cursorRequest = profiles.openCursor()
+          cursorRequest.onsuccess = () => {
+            const cursor = cursorRequest.result
+            if (!cursor) {
+              return
+            }
+            const value = cursor.value
+            if (typeof value.isBot !== "boolean") {
+              cursor.update({ ...value, isBot: false })
+            }
+            cursor.continue()
+          }
+        }
       }
 
       request.onsuccess = () => resolve(request.result)
@@ -77,12 +94,17 @@ export function getDb() {
 export async function listProfiles() {
   return withStore("profiles", "readonly", async (store) => {
     const items = await requestToPromise(store.getAll())
-    return items.sort((a, b) => a.name.localeCompare(b.name))
+    return items
+      .map((profile) => ({ ...profile, isBot: Boolean(profile.isBot) }))
+      .sort((a, b) => a.name.localeCompare(b.name))
   })
 }
 
 export function getProfile(profileId) {
-  return withStore("profiles", "readonly", (store) => requestToPromise(store.get(profileId)))
+  return withStore("profiles", "readonly", async (store) => {
+    const profile = await requestToPromise(store.get(profileId))
+    return profile ? { ...profile, isBot: Boolean(profile.isBot) } : null
+  })
 }
 
 export async function createProfile(input) {
@@ -98,6 +120,7 @@ export async function createProfile(input) {
       name: input.name,
       location: input.location,
       description: input.description,
+      isBot: Boolean(input.isBot),
       picture: input.picture ?? null,
       createdAt: now,
       updatedAt: now,
@@ -118,6 +141,7 @@ export async function updateProfile(profileId, input) {
     const updated = {
       ...existing,
       ...input,
+      isBot: typeof input.isBot === "boolean" ? input.isBot : Boolean(existing.isBot),
       updatedAt: new Date().toISOString(),
     }
 
