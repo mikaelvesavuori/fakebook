@@ -76,8 +76,6 @@
     var(--accent-avatar-start) 0%,
     var(--accent-avatar-end) 100%
   );
-  --viewport-safe-gap: 1.5rem;
-  --reaction-panel-mobile-max: min(21.5rem, calc(100vw - var(--viewport-safe-gap)));
 }
 
 * {
@@ -932,7 +930,10 @@ figure button {
 .reaction-trigger {
   width: 2.2rem;
   height: 2.2rem;
+  min-height: 2.2rem;
   min-width: 0;
+  padding: 0;
+  border-radius: 999px;
 }
 
 .reaction-trigger svg {
@@ -964,6 +965,7 @@ figure button {
   transition:
     opacity 140ms ease,
     transform 140ms ease;
+  z-index: 20;
 }
 
 .reaction-picker:hover .reaction-panel,
@@ -1092,11 +1094,14 @@ figure button {
   }
 
   .post__actions {
+    position: relative;
     width: 100%;
     justify-content: flex-end;
   }
 
   .comment-toggle {
+    height: 2.2rem;
+    min-height: 2.2rem;
     flex-shrink: 0;
   }
 
@@ -1106,11 +1111,23 @@ figure button {
   }
 
   .reaction-panel {
-    width: auto;
-    max-width: none;
-    left: 0;
     right: 0;
+    left: auto;
+    bottom: calc(100% + 0.5rem);
+    width: min(100%, 19.5rem);
+    max-width: 100%;
+    padding: 0.52rem;
     grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.48rem;
+    transform: translateY(6px);
+    z-index: 40;
+  }
+
+  .reaction-emoji {
+    width: 100%;
+    min-width: 0;
+    height: 2.4rem;
+    font-size: 1.14rem;
   }
 
   .comments__list {
